@@ -1,14 +1,13 @@
 {{- $id := .Site.GoogleAnalytics -}}
-{{- if $id -}}
-  {{- if hasPrefix $id "G-" -}}
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $id }}"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '{{ $id }}');
-    </script>
-  {{- else -}}
-    {{- template "_internal/google_analytics.html" . -}}
-  {{- end -}}
+{{- if and $id (hasPrefix $id "G-") -}}
+  <!-- Google tag (gtag.js) for GA4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ $id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ $id }}');
+  </script>
+{{- else -}}
+  <!-- No GA injected: either no ID or non-GA4 ID detected -->
 {{- end -}}

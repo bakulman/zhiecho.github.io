@@ -1,12 +1,16 @@
 baseURL = "https://zhiecho.github.io/"
 theme = "PaperMod"
 title = "Zhiecho 的博客"
-paginate = 10
 enableRobotsTXT = true
 canonifyURLs = true
 enableEmoji = true
 
+[pagination]
+  pagerSize = 10
+  # path = "page"  # 如需自定义分页路径，再取消注释
+
 [permalinks]
+  # 注意：这里的 posts 对应 content/posts 目录，请确认你的文章放在 content/posts 下
   posts = "/p/:year/:month/:day/:slug/"
 
 [params]
@@ -15,6 +19,7 @@ enableEmoji = true
   author = "Bakulman"
   keywords = ["博客", "技术", "生活"]
   defaultTheme = "auto"
+
   ShowReadingTime = true
   ShowShareButtons = true
   ShowPostNavLinks = true
@@ -22,7 +27,7 @@ enableEmoji = true
   ShowBreadCrumbs = true
   ShowRssButtonInSectionTermList = true
   UseHugoToc = true
-  comments = true
+  # 想默认显示文章目录可加上：ShowToc = true
 
   [params.homeInfoParams]
     Title = "你好，我是 Bakulman"
@@ -44,23 +49,27 @@ enableEmoji = true
   priority = 0.5
   filename = "sitemap.xml"
 
-# （可选）GA4
+# （可选）GA4：如需启用把下面一行改为你的 Measurement ID（形如 G-XXXXXXXXXX）
 # googleAnalytics = "G-XXXXXXXXXX"
 
-# （可选）giscus：按 giscus.app 生成参数后填写
+# （可选）giscus：评论系统（需要在 giscus.app 生成并安装 GitHub App）
+[params]
+  comments = true
+
 [params.giscus]
-  repo = "zhiecho/zhiecho.github.io"
-  repoID = ""
+  repo = "bakulman/zhiecho.github.io"
+  repoID = "R_kgDOPcdJDA"
   category = "Announcements"
-  categoryID = ""
+  categoryID = "DIC_kwDOPcdJDM4CuFHA"
   mapping = "pathname"
+  strict = "0"
   reactionsEnabled = "1"
   emitMetadata = "0"
-  inputPosition = "bottom"
-  theme = "preferred_color_scheme"
+  inputPosition = "top"
+  theme = "dark"           # 若想随站点主题切换，可改为 "preferred_color_scheme"
   lang = "zh-CN"
+  loading = "lazy"
   crossorigin = "anonymous"
-
 [[menu.main]]
   name = "归档"
   url = "/archives/"
