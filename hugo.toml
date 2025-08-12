@@ -1,6 +1,6 @@
 baseURL = "https://zhiecho.github.io/"
-title = "Zhiecho 的博客"
 theme = "PaperMod"
+title = "Zhiecho 的博客"
 paginate = 10
 enableRobotsTXT = true
 canonifyURLs = true

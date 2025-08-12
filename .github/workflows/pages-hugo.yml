@@ -23,43 +23,75 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Hugo (extended, robust)
+      - name: Install Hugo (extended via API discovery)
         env:
-          HUGO_VERSION: "0.150.0"
+          HUGO_VERSION: "0.150.0" # 如该版本资产缺失，可改成 0.149.0 或 0.148.2 试下
         run: |
           set -euo pipefail
-          OS="linux"
-          ARCH="$(uname -m)"
-          case "$ARCH" in
-            x86_64) ARCH="amd64" ;;
-            aarch64|arm64) ARCH="arm64" ;;
-            *)
-              echo "Unsupported arch: $(uname -m)"
-              exit 1
-              ;;
-          esac
 
-          TAR_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_${OS}-${ARCH}.tar.gz"
-          DEB_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_${OS}-${ARCH}.deb"
+          # 工具
+          sudo apt-get update -y
+          sudo apt-get install -y jq
 
-          echo "Trying tarball: $TAR_URL"
-          if curl -fLsS -o /tmp/hugo.tar.gz "$TAR_URL"; then
-            if tar -tzf /tmp/hugo.tar.gz >/dev/null 2>&1; then
-              tar -xzf /tmp/hugo.tar.gz -C /tmp
-              sudo install -m 0755 /tmp/hugo /usr/local/bin/hugo
-            else
-              echo "Downloaded tar is not a valid gzip; showing headers:"
-              curl -sIL "$TAR_URL" || true
-              echo "Falling back to .deb…"
-              curl -fLsS -o /tmp/hugo.deb "$DEB_URL"
-              sudo dpkg -i /tmp/hugo.deb
-            fi
+          VER="${HUGO_VERSION}"
+          API="https://api.github.com/repos/gohugoio/hugo/releases/tags/v${VER}"
+
+          echo "Fetching asset list for Hugo v${VER}…"
+          if [ -n "${GITHUB_TOKEN-}" ]; then
+            curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" "$API" -o /tmp/hugo.json
           else
-            echo "Tarball download failed; headers:"
-            curl -sIL "$TAR_URL" || true
-            echo "Falling back to .deb: $DEB_URL"
-            curl -fLsS -o /tmp/hugo.deb "$DEB_URL"
+            curl -fsSL "$API" -o /tmp/hugo.json
+          fi
+
+          if ! jq -e . >/dev/null 2>&1 </tmp/hugo.json; then
+            echo "Failed to get release JSON:"
+            cat /tmp/hugo.json || true
+            exit 1
+          fi
+
+          # 优先选 tar.gz，其次 .deb；要求：extended + linux + amd64/x86_64
+          URL_TAR="$(jq -r '.assets[] |
+              select((.name|test("extended";"i")) and
+                     (.name|test("linux";"i")) and
+                     (.name|test("(amd64|x86_64)";"i")) and
+                     (.name|endswith(".tar.gz"))) |
+              .browser_download_url' /tmp/hugo.json | head -n1 || true)"
+
+          URL_DEB="$(jq -r '.assets[] |
+              select((.name|test("extended";"i")) and
+                     (.name|test("linux";"i")) and
+                     (.name|test("(amd64|x86_64)";"i")) and
+                     (.name|endswith(".deb"))) |
+              .browser_download_url' /tmp/hugo.json | head -n1 || true)"
+
+          if [ -n "${URL_TAR}" ] && [ "${URL_TAR}" != "null" ]; then
+            echo "Downloading tarball: ${URL_TAR}"
+            curl -fLsS -o /tmp/hugo.tar.gz "${URL_TAR}"
+            # 校验归档
+            tar -tzf /tmp/hugo.tar.gz >/dev/null
+            tar -xzf /tmp/hugo.tar.gz -C /tmp
+            # 归档里会有 hugo 可执行文件
+            if [ ! -f /tmp/hugo ]; then
+              # 某些版本会解到子目录
+              HUGO_PATH="$(tar -tzf /tmp/hugo.tar.gz | grep -E '/?hugo$' | head -n1 | xargs -I{} sh -c 'echo /tmp/$(dirname "{}")/hugo' || true)"
+              if [ -f "${HUGO_PATH}" ]; then
+                sudo install -m 0755 "${HUGO_PATH}" /usr/local/bin/hugo
+              else
+                echo "Cannot locate hugo binary in tarball."
+                exit 1
+              fi
+            else
+              sudo install -m 0755 /tmp/hugo /usr/local/bin/hugo
+            fi
+          elif [ -n "${URL_DEB}" ] && [ "${URL_DEB}" != "null" ]; then
+            echo "Downloading deb: ${URL_DEB}"
+            curl -fLsS -o /tmp/hugo.deb "${URL_DEB}"
             sudo dpkg -i /tmp/hugo.deb
+          else
+            echo "No suitable linux amd64 extended asset found for v${VER}."
+            echo "Available assets:"
+            jq -r '.assets[].name' /tmp/hugo.json
+            exit 1
           fi
 
           echo "Hugo installed:"
