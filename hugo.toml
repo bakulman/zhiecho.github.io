@@ -1,4 +1,4 @@
-baseURL = "https://bakulman.github.io/"
+baseURL = "https://zhiecho.github.io/"
 title = "Bakulman 的博客"
 theme = "PaperMod"
 paginate = 10
@@ -14,7 +14,7 @@ enableEmoji = true
   description = "记录与分享"
   author = "Bakulman"
   keywords = ["博客", "技术", "生活"]
-  defaultTheme = "auto"              # 自动跟随系统/暗黑模式
+  defaultTheme = "auto"
   ShowReadingTime = true
   ShowShareButtons = true
   ShowPostNavLinks = true
@@ -30,10 +30,10 @@ enableEmoji = true
 
   [[params.socialIcons]]
     name = "github"
-    url = "https://github.com/bakulman"
+    url = "https://github.com/zhiecho"
 
 [outputs]
-  home = ["HTML", "RSS", "JSON"]     # JSON 用于站内搜索
+  home = ["HTML", "RSS", "JSON"]
 
 [markup]
   [markup.goldmark.renderer]
@@ -44,15 +44,12 @@ enableEmoji = true
   priority = 0.5
   filename = "sitemap.xml"
 
-# （可选）Google Analytics 4
-googleAnalytics = "G-XXXXXXXXXX"
+# （可选）GA4
+# googleAnalytics = "G-XXXXXXXXXX"
 
-#（可选）评论：giscus，先在 giscus.app 里生成这些参数再填
-[params.comments]
-  provider = "giscus"
-
+# （可选）giscus：按 giscus.app 生成参数后填写
 [params.giscus]
-  repo = "bakulman/bakulman.github.io"
+  repo = "zhiecho/zhiecho.github.io"
   repoID = ""
   category = "Announcements"
   categoryID = ""
