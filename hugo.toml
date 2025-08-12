@@ -1,0 +1,80 @@
+baseURL = "https://bakulman.github.io/"
+title = "Bakulman 的博客"
+theme = "PaperMod"
+paginate = 10
+enableRobotsTXT = true
+canonifyURLs = true
+enableEmoji = true
+
+[permalinks]
+  posts = "/p/:year/:month/:day/:slug/"
+
+[params]
+  env = "production"
+  description = "记录与分享"
+  author = "Bakulman"
+  keywords = ["博客", "技术", "生活"]
+  defaultTheme = "auto"              # 自动跟随系统/暗黑模式
+  ShowReadingTime = true
+  ShowShareButtons = true
+  ShowPostNavLinks = true
+  ShowCodeCopyButtons = true
+  ShowBreadCrumbs = true
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
+  comments = true
+
+  [params.homeInfoParams]
+    Title = "你好，我是 Bakulman"
+    Content = "这里记录我的折腾与思考。"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/bakulman"
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]     # JSON 用于站内搜索
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+
+[sitemap]
+  changefreq = "weekly"
+  priority = 0.5
+  filename = "sitemap.xml"
+
+# （可选）Google Analytics 4
+googleAnalytics = "G-XXXXXXXXXX"
+
+#（可选）评论：giscus，先在 giscus.app 里生成这些参数再填
+[params.comments]
+  provider = "giscus"
+
+[params.giscus]
+  repo = "bakulman/bakulman.github.io"
+  repoID = ""
+  category = "Announcements"
+  categoryID = ""
+  mapping = "pathname"
+  reactionsEnabled = "1"
+  emitMetadata = "0"
+  inputPosition = "bottom"
+  theme = "preferred_color_scheme"
+  lang = "zh-CN"
+  crossorigin = "anonymous"
+
+[[menu.main]]
+  name = "归档"
+  url = "/archives/"
+  weight = 1
+
+[[menu.main]]
+  name = "标签"
+  url = "/tags/"
+  weight = 2
+
+[[menu.main]]
+  name = "关于"
+  url = "/about/"
+  weight = 3
