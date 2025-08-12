@@ -21,74 +21,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: true  # 若主题用 submodule，必须为 true
+          submodules: true
 
-      - name: Install Hugo (extended, auto-latest stable)
+      - name: Install Hugo (extended, auto-latest; no auth header)
         env:
-          HUGO_VERSION: "latest"   # 可改为具体版本号，例如 "0.149.1"
+          # 如需固定版本，改成例如 "0.149.1"；否则用 "latest"
+          HUGO_VERSION: "latest"
         run: |
           set -euo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y jq
+          sudo apt-get install -y jq ca-certificates
 
-          want="${HUGO_VERSION}"
-          api_release() {
-            curl -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN:-}" \
-              "https://api.github.com/repos/gohugoio/hugo/$1"
-          }
-
-          # 取版本 JSON：latest 或指定 tag
-          if [ "$want" = "latest" ] || [ -z "$want" ]; then
+          # 取 tag
+          if [ "${HUGO_VERSION:-latest}" = "latest" ] || [ -z "${HUGO_VERSION:-}" ]; then
             echo "Querying latest stable Hugo release…"
-            api_release "releases?per_page=20" > /tmp/hugo_list.json
-            # 选第一个非预发布版本
-            jq -r '.[] | select(.prerelease==false) | .tag_name' /tmp/hugo_list.json | head -n1 > /tmp/tag.txt
-            if ! grep -q '^v' /tmp/tag.txt; then
-              echo "Cannot determine latest stable release tag."
-              cat /tmp/hugo_list.json || true
-              exit 1
-            fi
-            TAG="$(cat /tmp/tag.txt)"
-            VER="${TAG#v}"
-            API_JSON="$(api_release "releases/tags/${TAG}")"
+            TAG="$(curl -fsSL https://api.github.com/repos/gohugoio/hugo/releases/latest | jq -r .tag_name)"
           else
-            TAG="v${want#v}"
-            echo "Querying Hugo release ${TAG}…"
-            set +e
-            API_JSON="$(api_release "releases/tags/${TAG}")"
-            rc=$?
-            set -e
-            if [ $rc -ne 0 ] || echo "$API_JSON" | jq -e '.message=="Not Found"' >/dev/null 2>&1; then
-              echo "Tag ${TAG} not found. Pick a valid version or set HUGO_VERSION=latest."
-              echo "Recent tags:"
-              api_release "releases?per_page=10" | jq -r '.[].tag_name'
-              exit 1
-            fi
-            VER="${TAG#v}"
+            TAG="v${HUGO_VERSION#v}"
           fi
+          if ! printf '%s' "$TAG" | grep -q '^v'; then
+            echo "Cannot determine tag. Got: $TAG"
+            exit 1
+          fi
+          VER="${TAG#v}"
+          echo "Using Hugo ${TAG}"
 
-          # 根据资产列表选择 extended + linux + amd64
-          echo "$API_JSON" > /tmp/hugo.json
+          # 拉取该 tag 的资产列表（匿名访问，不能带 GITHUB_TOKEN）
+          curl -fsSL "https://api.github.com/repos/gohugoio/hugo/releases/tags/${TAG}" -o /tmp/hugo.json
 
+          # 选 extended + linux + amd64 资产，优先 tar.gz，其次 deb
           pick_asset() {
-            jq -r '.assets[] |
+            EXT="$1"
+            jq -r --arg ext "$EXT" '
+              .assets[] |
               select((.name|test("extended";"i")) and
                      (.name|test("linux";"i")) and
                      (.name|test("(amd64|x86_64)";"i")) and
-                     (.name|endswith(env:EXT))) |
+                     (.name|endswith($ext))) |
               .browser_download_url' /tmp/hugo.json | head -n1
           }
-
-          EXT=".tar.gz"; URL_TAR="$(EXT="$EXT" pick_asset || true)"
-          EXT=".deb";    URL_DEB="$(EXT="$EXT" pick_asset || true)"
+          URL_TAR="$(pick_asset ".tar.gz" || true)"
+          URL_DEB="$(pick_asset ".deb" || true)"
 
           if [ -n "${URL_TAR:-}" ] && [ "${URL_TAR}" != "null" ]; then
             echo "Downloading tarball: ${URL_TAR}"
             curl -fLsS -o /tmp/hugo.tar.gz "${URL_TAR}"
             tar -tzf /tmp/hugo.tar.gz >/dev/null
             tar -xzf /tmp/hugo.tar.gz -C /tmp
-            # 查找可执行文件
-            BIN="$(tar -tzf /tmp/hugo.tar.gz | grep -E '/?hugo$' | head -n1 | sed 's#^\./##' || true)"
+            # 定位 hugo 可执行文件
+            BIN="$(tar -tzf /tmp/hugo.tar.gz | grep -E '(^|/)+hugo$' | head -n1 | sed 's#^\./##')"
             if [ -z "$BIN" ]; then
               echo "Cannot locate hugo binary in tarball."
               exit 1
@@ -97,10 +78,10 @@ jobs:
           elif [ -n "${URL_DEB:-}" ] && [ "${URL_DEB}" != "null" ]; then
             echo "Downloading deb: ${URL_DEB}"
             curl -fLsS -o /tmp/hugo.deb "${URL_DEB}"
-            sudo dpkg -i /tmp/hugo.deb
+            sudo dpkg -i /tmp/hugo.deb || sudo apt-get -f install -y
           else
             echo "No suitable linux amd64 extended asset found for ${TAG}."
-            echo "Available assets for ${TAG}:"
+            echo "Available assets:"
             jq -r '.assets[].name' /tmp/hugo.json || true
             exit 1
           fi
