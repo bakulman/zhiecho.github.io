@@ -21,20 +21,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: true  # 确保拉取 PaperMod 子模块（如果你是用 submodule 安装主题）
+          submodules: true
 
-      # 直接下载安装 Hugo 扩展版，避免第三方 Action 版本/资产命名引发 404
-      - name: Install Hugo (extended)
+      - name: Install Hugo (extended, robust)
         env:
-          HUGO_VERSION: 0.150.0
+          HUGO_VERSION: "0.150.0"
         run: |
-          set -e
-          echo "Downloading Hugo v${HUGO_VERSION} (extended)…"
-          curl -sSL -o /tmp/hugo.tar.gz \
-            https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_Linux-amd64.tar.gz
-          tar -xzf /tmp/hugo.tar.gz -C /tmp
-          sudo mv /tmp/hugo /usr/local/bin/hugo
-          chmod +x /usr/local/bin/hugo
+          set -euo pipefail
+          OS="linux"
+          ARCH="$(uname -m)"
+          case "$ARCH" in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *)
+              echo "Unsupported arch: $(uname -m)"
+              exit 1
+              ;;
+          esac
+
+          TAR_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_${OS}-${ARCH}.tar.gz"
+          DEB_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_${OS}-${ARCH}.deb"
+
+          echo "Trying tarball: $TAR_URL"
+          if curl -fLsS -o /tmp/hugo.tar.gz "$TAR_URL"; then
+            if tar -tzf /tmp/hugo.tar.gz >/dev/null 2>&1; then
+              tar -xzf /tmp/hugo.tar.gz -C /tmp
+              sudo install -m 0755 /tmp/hugo /usr/local/bin/hugo
+            else
+              echo "Downloaded tar is not a valid gzip; showing headers:"
+              curl -sIL "$TAR_URL" || true
+              echo "Falling back to .deb…"
+              curl -fLsS -o /tmp/hugo.deb "$DEB_URL"
+              sudo dpkg -i /tmp/hugo.deb
+            fi
+          else
+            echo "Tarball download failed; headers:"
+            curl -sIL "$TAR_URL" || true
+            echo "Falling back to .deb: $DEB_URL"
+            curl -fLsS -o /tmp/hugo.deb "$DEB_URL"
+            sudo dpkg -i /tmp/hugo.deb
+          fi
+
+          echo "Hugo installed:"
           hugo version
 
       - name: Build
