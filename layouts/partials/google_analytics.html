@@ -1,4 +1,6 @@
-{{- $id := .Site.GoogleAnalytics -}}
+{{- /* GA4 only. Read from .Site.Params.googleAnalytics; do nothing if unset. */ -}}
+{{- $id := "" -}}
+{{- with site.Params.googleAnalytics }}{{ $id = . }}{{ end -}}
 {{- if and $id (hasPrefix $id "G-") -}}
   <!-- Google tag (gtag.js) for GA4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id={{ $id }}"></script>
@@ -9,5 +11,5 @@
     gtag('config', '{{ $id }}');
   </script>
 {{- else -}}
-  <!-- No GA injected: either no ID or non-GA4 ID detected -->
+  <!-- No GA injected -->
 {{- end -}}
