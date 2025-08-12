@@ -10,7 +10,7 @@
       gtag('config', '{{ $id }}');
     </script>
   {{- else -}}
-    {{- /* UA-* fallback: use Hugo's internal template if present */ -}}
+    {{- /* UA-* fallback: use Hugo's internal template */ -}}
     {{- template "_internal/google_analytics.html" . -}}
   {{- end -}}
 {{- end -}}

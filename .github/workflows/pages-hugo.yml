@@ -18,23 +18,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: true  # 确保拉取 PaperMod 子模块（如果你是用 submodule 安装主题）
 
-      # 若此前 configure-pages 因权限报错，可暂时注释掉以下步骤，仅验证构建
-      # - uses: actions/configure-pages@v5
-      #   with:
-      #     enablement: false  # 已在仓库 Settings 手动启用 Pages 的话，保持 false 或移除都可以
+      # 直接下载安装 Hugo 扩展版，避免第三方 Action 版本/资产命名引发 404
+      - name: Install Hugo (extended)
+        env:
+          HUGO_VERSION: 0.150.0
+        run: |
+          set -e
+          echo "Downloading Hugo v${HUGO_VERSION} (extended)…"
+          curl -sSL -o /tmp/hugo.tar.gz \
+            https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_Linux-amd64.tar.gz
+          tar -xzf /tmp/hugo.tar.gz -C /tmp
+          sudo mv /tmp/hugo /usr/local/bin/hugo
+          chmod +x /usr/local/bin/hugo
+          hugo version
 
-      - uses: actions/setup-hugo@v4
-        with:
-          hugo-version: '0.150.0'
-          extended: true
+      - name: Build
+        run: hugo --minify
 
-      - run: hugo --minify
-
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
 
