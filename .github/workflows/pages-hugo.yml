@@ -22,11 +22,12 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true   # 关键：首次运行时自动启用 Pages
+      # 若此前 configure-pages 因权限报错，可暂时注释掉以下步骤，仅验证构建
+      # - uses: actions/configure-pages@v5
+      #   with:
+      #     enablement: false  # 已在仓库 Settings 手动启用 Pages 的话，保持 false 或移除都可以
 
-      - uses: peaceiris/actions-hugo@v2
+      - uses: actions/setup-hugo@v4
         with:
           hugo-version: '0.150.0'
           extended: true
