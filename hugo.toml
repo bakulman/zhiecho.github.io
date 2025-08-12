@@ -1,5 +1,5 @@
 baseURL = "https://zhiecho.github.io/"
-title = "Bakulman 的博客"
+title = "Zhiecho 的博客"
 theme = "PaperMod"
 paginate = 10
 enableRobotsTXT = true

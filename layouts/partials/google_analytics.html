@@ -1,0 +1,16 @@
+{{- $id := .Site.GoogleAnalytics -}}
+{{- if $id -}}
+  {{- if hasPrefix $id "G-" -}}
+    <!-- Google tag (gtag.js) for GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $id }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{ $id }}');
+    </script>
+  {{- else -}}
+    {{- /* UA-* fallback: use Hugo's internal template if present */ -}}
+    {{- template "_internal/google_analytics.html" . -}}
+  {{- end -}}
+{{- end -}}
