@@ -23,16 +23,16 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Hugo (extended, auto-latest; no auth header)
+      - name: Install Hugo (extended, latest stable, robust)
         env:
-          # 如需固定版本，改成例如 "0.149.1"；否则用 "latest"
+          # 固定版本可改为 "0.149.1"；保持 "latest" 自动取最新稳定版
           HUGO_VERSION: "latest"
         run: |
           set -euo pipefail
           sudo apt-get update -y
           sudo apt-get install -y jq ca-certificates
 
-          # 取 tag
+          # 1) 选版本（不带授权头）
           if [ "${HUGO_VERSION:-latest}" = "latest" ] || [ -z "${HUGO_VERSION:-}" ]; then
             echo "Querying latest stable Hugo release…"
             TAG="$(curl -fsSL https://api.github.com/repos/gohugoio/hugo/releases/latest | jq -r .tag_name)"
@@ -43,13 +43,10 @@ jobs:
             echo "Cannot determine tag. Got: $TAG"
             exit 1
           fi
-          VER="${TAG#v}"
           echo "Using Hugo ${TAG}"
-
-          # 拉取该 tag 的资产列表（匿名访问，不能带 GITHUB_TOKEN）
           curl -fsSL "https://api.github.com/repos/gohugoio/hugo/releases/tags/${TAG}" -o /tmp/hugo.json
 
-          # 选 extended + linux + amd64 资产，优先 tar.gz，其次 deb
+          # 2) 选择 extended + linux + amd64 资产（优先 tar.gz，其次 .deb）
           pick_asset() {
             EXT="$1"
             jq -r --arg ext "$EXT" '
@@ -63,25 +60,38 @@ jobs:
           URL_TAR="$(pick_asset ".tar.gz" || true)"
           URL_DEB="$(pick_asset ".deb" || true)"
 
+          # 3) 安装
           if [ -n "${URL_TAR:-}" ] && [ "${URL_TAR}" != "null" ]; then
             echo "Downloading tarball: ${URL_TAR}"
             curl -fLsS -o /tmp/hugo.tar.gz "${URL_TAR}"
             tar -tzf /tmp/hugo.tar.gz >/dev/null
-            tar -xzf /tmp/hugo.tar.gz -C /tmp
-            # 定位 hugo 可执行文件
-            BIN="$(tar -tzf /tmp/hugo.tar.gz | grep -E '(^|/)+hugo$' | head -n1 | sed 's#^\./##')"
-            if [ -z "$BIN" ]; then
-              echo "Cannot locate hugo binary in tarball."
+
+            # 解压到独立目录，避免路径冲突
+            EXTRACT_DIR="$(mktemp -d /tmp/hugo-extract-XXXX)"
+            tar -xzf /tmp/hugo.tar.gz -C "${EXTRACT_DIR}"
+
+            # 精确查找可执行的 hugo 二进制
+            HUGO_BIN="$(find "${EXTRACT_DIR}" -type f -name 'hugo' -perm -u+x -print -quit)"
+            if [ -z "${HUGO_BIN}" ]; then
+              # 有些归档未标可执行位，降级用文件名匹配
+              HUGO_BIN="$(find "${EXTRACT_DIR}" -type f -name 'hugo' -print -quit)"
+            fi
+            if [ -z "${HUGO_BIN}" ] || [ ! -f "${HUGO_BIN}" ]; then
+              echo "Cannot locate hugo binary in extracted files."
+              echo "Extracted tree:"
+              find "${EXTRACT_DIR}" -maxdepth 2 -print
               exit 1
             fi
-            sudo install -m 0755 "/tmp/${BIN%/hugo}/hugo" /usr/local/bin/hugo
+            chmod +x "${HUGO_BIN}" || true
+            sudo install -m 0755 "${HUGO_BIN}" /usr/local/bin/hugo
+
           elif [ -n "${URL_DEB:-}" ] && [ "${URL_DEB}" != "null" ]; then
             echo "Downloading deb: ${URL_DEB}"
             curl -fLsS -o /tmp/hugo.deb "${URL_DEB}"
             sudo dpkg -i /tmp/hugo.deb || sudo apt-get -f install -y
           else
             echo "No suitable linux amd64 extended asset found for ${TAG}."
-            echo "Available assets:"
+            echo "Available assets for ${TAG}:"
             jq -r '.assets[].name' /tmp/hugo.json || true
             exit 1
           fi
